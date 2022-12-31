@@ -87,7 +87,7 @@ pip install -r requirements.txt
 ```Shell
 CUDA_VISIBLE_DEVICES=0 python main.py --modality video \
                                       --config-path <MODEL-JSON-PATH> \
-                                      --annonation-direc <ANNONATION-DIRECTORY> \
+                                      --annotation-direc <ANNOTATION-DIRECTORY> \
                                       --data-dir <MOUTH-ROIS-DIRECTORY>
 ```
 
@@ -96,11 +96,11 @@ CUDA_VISIBLE_DEVICES=0 python main.py --modality video \
 ```Shell
 CUDA_VISIBLE_DEVICES=0 python main.py --modality audio \
                                       --config-path <MODEL-JSON-PATH> \
-                                      --annonation-direc <ANNONATION-DIRECTORY> \
+                                      --annotation-direc <ANNOTATION-DIRECTORY> \
                                       --data-dir <AUDIO-WAVEFORMS-DIRECTORY>
 ```
 
-We call the original LRW directory that includes timestamps (.txt) as *`<ANNONATION-DIRECTORY>`*.
+We call the original LRW directory that includes timestamps (.txt) as *`<ANNOTATION-DIRECTORY>`*.
 
 3. Resume from last checkpoint.
 
@@ -109,7 +109,7 @@ You can pass the checkpoint path (.pth) *`<CHECKPOINT-PATH>`* to the variable ar
 
 ### How to test
 
-You need to specify *`<ANNONATION-DIRECTORY>`* if you use a model with utilising word boundaries indicators.
+You need to specify *`<ANNOTATION-DIRECTORY>`* if you use a model with utilising word boundaries indicators.
 
 1. Evaluate the visual-only performance (lipreading).
 
