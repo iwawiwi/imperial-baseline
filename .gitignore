@@ -8,3 +8,6 @@ __pycache__/
 *.pth
 datasets/outputs
 .DS_Store
+
+# project specific
+data/lrw*
