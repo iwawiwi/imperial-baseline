@@ -27,6 +27,13 @@ from lipreading.mixup import mixup_data, mixup_criterion
 from lipreading.optim_utils import get_optimizer, CosineScheduler
 from lipreading.dataloaders import get_data_loaders, get_preprocessing_pipelines
 
+# set for reproducibility
+torch.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
+# torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = True
+
 
 def load_args(default_config=None):
     parser = argparse.ArgumentParser(description="Pytorch Lipreading ")
@@ -52,7 +59,7 @@ def load_args(default_config=None):
         help="Path to txt file with labels",
     )
     parser.add_argument(
-        "--annonation-direc",
+        "--annotation-direc",
         default="/mnt/d/Research/Dataset/XS_LRW/lrw_origin_200",
         help="Loaded data directory",
     )
