@@ -54,7 +54,7 @@ def get_data_loaders(args):
             data_partition=partition,
             data_dir=args.data_dir,
             label_fp=args.label_path,
-            annonation_direc=args.annonation_direc,
+            annotation_direc=args.annotation_direc,
             preprocessing_func=preprocessing[partition],
             data_suffix=".npz",
             use_boundary=args.use_boundary,
