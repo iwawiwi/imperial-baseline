@@ -176,6 +176,22 @@ class Lipreading(nn.Module):
                 self.frontend_nout = 24
                 self.backend_out = 1024 if width_mult != 2.0 else 2048
                 self.stage_out_channels = shufflenet.stage_out_channels[-1]
+            elif self.backbone_type == "mobilenet":
+                from lipreading.models.mobilenetv3 import mobilenetv3_small
+
+                self.frontend_nout = 16
+                self.backend_out = 48
+                self.trunk = mobilenetv3_small()
+            elif self.backbone_type == "mobilenet-large":
+                from lipreading.models.mobilenetv3 import mobilenetv3_large
+
+                self.frontend_nout = 16
+                self.backend_out = 112
+                self.trunk = mobilenetv3_large()
+            else:
+                raise ValueError(
+                    f"backbone type {self.backbone_type} is not supported."
+                )
 
             # -- frontend3D
             if relu_type == "relu":
