@@ -12,3 +12,4 @@ datasets/outputs
 # project specific
 data/lrw*
 train_logs/
+wandb/

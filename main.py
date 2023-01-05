@@ -8,15 +8,17 @@
 
 import os
 import time
+import wandb
 import random
 import argparse
 import numpy as np
-from tqdm import tqdm
+from tqdm.rich import tqdm
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torchinfo import summary
 from lipreading.utils import get_save_folder
 from lipreading.utils import load_json, save2npz
 from lipreading.utils import load_model, CheckpointSaver
@@ -341,6 +343,14 @@ def train(model, dset_loader, criterion, epoch, optimizer, logger):
         running_all += input.size(0)
         # -- log intermediate results
         if batch_idx % args.interval == 0 or (batch_idx == len(dset_loader) - 1):
+            # pass train loss and acc to wandb logger
+            wandb.log(
+                {
+                    "train/loss": running_loss / running_all,
+                    "train/acc": running_corrects / running_all,
+                }
+            )
+            # log intermediate results to console and file
             update_logger_batch(
                 args,
                 logger,
@@ -401,6 +411,8 @@ def get_model_from_json():
         extract_feats=args.extract_feats,
     ).cuda()
     calculateNorm2(model)
+    # ==> print model summary
+    summary(model, input_size=(1, 1, 29, 88, 88), depth=3, device="cuda")
     return model
 
 
@@ -469,6 +481,9 @@ def main():
     while epoch < args.epochs:
         model = train(model, dset_loaders["train"], criterion, epoch, optimizer, logger)
         acc_avg_val, loss_avg_val = evaluate(model, dset_loaders["val"], criterion)
+        # pass val loss and val acc to wandb logger
+        wandb.log({"val/loss": loss_avg_val, "val/acc": acc_avg_val})
+        # log to console and text file
         logger.info(
             f"{'val'} Epoch:\t{epoch:2}\tLoss val: {loss_avg_val:.4f}\tAcc val:{acc_avg_val:.4f}, LR: {showLR(optimizer)}"
         )
@@ -486,10 +501,15 @@ def main():
     best_fp = os.path.join(ckpt_saver.save_dir, ckpt_saver.best_fn)
     _ = load_model(best_fp, model)
     acc_avg_test, loss_avg_test = evaluate(model, dset_loaders["test"], criterion)
+    # pass test loss and test acc to wandb logger
+    wandb.log({"test/loss": loss_avg_test, "test/acc": acc_avg_test})
+    # log to console and text file
     logger.info(
         f"Test time performance of best epoch: {acc_avg_test} (loss: {loss_avg_test})"
     )
 
 
+wandb.init(project="imperial-baseline", config=args)
 if __name__ == "__main__":
     main()
+    wandb.finish()
