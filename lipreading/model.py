@@ -260,7 +260,10 @@ class Lipreading(nn.Module):
         # -- initialize
         self._initialize_weights_randomly()
 
-    def forward(self, x, lengths, boundaries=None):
+    def forward(self, x, lengths=None, boundaries=None):
+        if lengths is None:
+            lengths = [x.shape[2]] * x.shape[0]
+
         if self.modality == "video":
             B, C, T, H, W = x.size()
             x = self.frontend3D(x)
