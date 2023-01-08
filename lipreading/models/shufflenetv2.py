@@ -106,9 +106,9 @@ class InvertedResidual(nn.Module):
         return channel_shuffle(out, 2)
 
 
-class ShuffleNetV2(nn.Module):
+class ShuffleNetV2_Ori(nn.Module):
     def __init__(self, n_class=1000, input_size=224, width_mult=2.0):
-        super(ShuffleNetV2, self).__init__()
+        super(ShuffleNetV2_Ori, self).__init__()
 
         assert input_size % 32 == 0, "Input size needs to be divisible by 32"
 
@@ -170,4 +170,63 @@ class ShuffleNetV2(nn.Module):
         x = self.globalpool(x)
         x = x.view(-1, self.stage_out_channels[-1])
         x = self.classifier(x)
+        return x
+
+
+class ShuffleNetV2(nn.Module):
+    def __init__(self, n_class=1000, input_size=224, width_mult=2.0):
+        super(ShuffleNetV2, self).__init__()
+
+        assert input_size % 32 == 0, "Input size needs to be divisible by 32"
+
+        self.stage_repeats = [4, 8, 4]
+        # index 0 is invalid and should never be called.
+        # only used for indexing convenience.
+        if width_mult == 0.5:
+            self.stage_out_channels = [-1, 24, 48, 96, 192, 1024]
+        elif width_mult == 1.0:
+            self.stage_out_channels = [-1, 24, 116, 232, 464, 1024]
+        elif width_mult == 1.5:
+            self.stage_out_channels = [-1, 24, 176, 352, 704, 1024]
+        elif width_mult == 2.0:
+            self.stage_out_channels = [-1, 24, 244, 488, 976, 2048]
+        else:
+            raise ValueError(
+                """Width multiplier should be in [0.5, 1.0, 1.5, 2.0]. Current value: {}""".format(
+                    width_mult
+                )
+            )
+
+        # building first layer
+        input_channel = self.stage_out_channels[1]
+
+        self.features = []
+        # building inverted residual blocks
+        for idxstage in range(len(self.stage_repeats)):
+            numrepeat = self.stage_repeats[idxstage]
+            output_channel = self.stage_out_channels[idxstage + 2]
+            for i in range(numrepeat):
+                if i == 0:
+                    # inp, oup, stride, benchmodel):
+                    self.features.append(
+                        InvertedResidual(input_channel, output_channel, 2, 2)
+                    )
+                else:
+                    self.features.append(
+                        InvertedResidual(input_channel, output_channel, 1, 1)
+                    )
+                input_channel = output_channel
+
+        # make it nn.Sequential
+        self.features = nn.Sequential(*self.features)
+
+        # building last several layers
+        self.conv_last = conv_1x1_bn(input_channel, self.stage_out_channels[-1])
+        self.globalpool = nn.Sequential(nn.AvgPool2d(int(input_size / 32)))
+
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.conv_last(x)
+        x = self.globalpool(x)
         return x
