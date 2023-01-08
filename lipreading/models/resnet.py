@@ -2,7 +2,7 @@ import math
 import torch.nn as nn
 import pdb
 
-from lipreading.models.swish import Swish
+from .swish import Swish
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -31,10 +31,13 @@ def downsample_basic_block_v2(inplanes, outplanes, stride):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, relu_type="prelu"):
+    def __init__(
+        self, inplanes, planes, stride=1, downsample=None, relu_type="prelu", se=False
+    ):
         super(BasicBlock, self).__init__()
 
         assert relu_type in ["relu", "prelu", "swish"]
+        self.se = se
 
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -59,6 +62,16 @@ class BasicBlock(nn.Module):
         self.downsample = downsample
         self.stride = stride
 
+        # Squeeze-and-Excitation
+        if self.se:
+            self.se_block = nn.Sequential(
+                nn.AdaptiveAvgPool2d(1),
+                nn.Conv2d(planes, planes // 16, kernel_size=1, stride=1, padding=0),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(planes // 16, planes, kernel_size=1, stride=1, padding=0),
+                nn.Sigmoid(),
+            )
+
     def forward(self, x):
         residual = x
         out = self.conv1(x)
@@ -68,6 +81,11 @@ class BasicBlock(nn.Module):
         out = self.bn2(out)
         if self.downsample is not None:
             residual = self.downsample(x)
+
+        # Squeeze-and-Excitation
+        if self.se:
+            w = self.se_block(out)
+            out = out * w
 
         out += residual
         out = self.relu2(out)
@@ -84,19 +102,23 @@ class ResNet(nn.Module):
         relu_type="relu",
         gamma_zero=False,
         avg_pool_downsample=False,
+        squeeze_excitation=False,
+        width_mult=1.0,
     ):
-        self.inplanes = 64
+        divisor = 1 if width_mult == 1.0 else 2
+        self.inplanes = 64 // divisor
         self.relu_type = relu_type
         self.gamma_zero = gamma_zero
         self.downsample_block = (
             downsample_basic_block_v2 if avg_pool_downsample else downsample_basic_block
         )
+        self.se = squeeze_excitation
 
         super(ResNet, self).__init__()
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer1 = self._make_layer(block, 64 // divisor, layers[0])
+        self.layer2 = self._make_layer(block, 128 // divisor, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256 // divisor, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 512 // divisor, layers[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
 
         # default init
@@ -127,11 +149,20 @@ class ResNet(nn.Module):
 
         layers = []
         layers.append(
-            block(self.inplanes, planes, stride, downsample, relu_type=self.relu_type)
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                relu_type=self.relu_type,
+                se=self.se,
+            )
         )
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, relu_type=self.relu_type))
+            layers.append(
+                block(self.inplanes, planes, relu_type=self.relu_type, se=self.se)
+            )
 
         return nn.Sequential(*layers)
 
